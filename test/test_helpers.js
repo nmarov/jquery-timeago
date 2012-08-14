@@ -11,7 +11,9 @@ var iso8601 = function (date) {
 };
 
 function prepareDynamicDates() {
-  $('abbr.loaded').attr("title", iso8601(new Date()));
+  var d = new Date()
+  d.setHours(d.getHours() - 1)
+  $('abbr.loaded').attr("title", iso8601(d));
   $('abbr.modified').attr("title", iso8601(new Date(document.lastModified)));
 }
 

@@ -29,7 +29,6 @@
 
   $.extend($.timeago, {
     settings: {
-      refreshMillis: 60000,
       allowFuture: false,
       strings: {
         prefixAgo: null,
@@ -49,8 +48,13 @@
         years: "%d years",
         wordSeparator: " ",
         numbers: []
+      },
+      defaultOptions: {
+        timeDiff: 0,
+        refreshMillis: 60000
       }
     },
+
     inWords: function(distanceMillis) {
       var $l = this.settings.strings;
       var prefix = $l.prefixAgo;
@@ -104,26 +108,46 @@
     isTime: function(elem) {
       // jQuery's `is()` doesn't play well with HTML5 in IE
       return $(elem).get(0).tagName.toLowerCase() === "time"; // $(elem).is("time");
+    },
+    diffWithDate: function(date) {
+      var serverTime = 0
+      if(date instanceof Date) {
+        serverTime = date.getTime()
+      } else if (typeof date === "string") {
+        serverTime = parseInt(date)
+      } else if (typeof date === "number") {
+        serverTime = date
+      }
+      else {
+        throw "Can't parse server date"
+      }
+
+      return (new Date().getTime() - serverTime)
     }
   });
 
-  $.fn.timeago = function() {
+  $.fn.timeago = function(options) {
     var self = this;
-    self.each(refresh);
+    // Prepare plugin options
+    var options = $.extend({}, $t.settings.defaultOptions, options)
+    self.each(refresh(options));
 
-    var $s = $t.settings;
-    if ($s.refreshMillis > 0) {
-      setInterval(function() { self.each(refresh); }, $s.refreshMillis);
+    if (options.refreshMillis > 0) {
+      setInterval(function() { self.each(refresh(options)); }, options.refreshMillis);
     }
+
     return self;
   };
 
-  function refresh() {
-    var data = prepareData(this);
-    if (!isNaN(data.datetime)) {
-      $(this).text(inWords(data.datetime));
+  function refresh(options) {
+    return function() {
+      var data = prepareData(this);
+      if (!isNaN(data.datetime)) {
+        var dist = distance(data.datetime, options.timeDiff)
+        $(this).text(inWords(dist));
+      }
+      return this;
     }
-    return this;
   }
 
   function prepareData(element) {
@@ -138,12 +162,20 @@
     return element.data("timeago");
   }
 
-  function inWords(date) {
-    return $t.inWords(distance(date));
+  function getCurrentDate() {
+    return new Date().getTime()
   }
 
-  function distance(date) {
-    return (new Date().getTime() - date.getTime());
+  function getSyncedDate(diff) {
+    return getCurrentDate() - diff
+  }
+
+  function distance(date, diff) {
+    return (getSyncedDate(diff) - date.getTime());
+  }
+
+  function inWords(distance) {
+    return $t.inWords(distance);
   }
 
   // fix for IE6 suckage
